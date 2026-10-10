@@ -91,7 +91,6 @@ clinrag/
 ├── data/
 │   ├── raw/
 │   └── processed/
-└── tests/
 ```
 
 The `data/` directory contains the MedQuAD dataset and generated artifacts, which are excluded from Git using `.gitignore`.
