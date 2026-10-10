@@ -1,0 +1,27 @@
+# 1. Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 2. Virtual environments
+.venv/
+venv/
+env/
+
+# 3. Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# 4. Generated data and model artifacts
+data/raw/
+data/processed/
+models/
+
+# 5. Editor and operating system files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 6. Logs
+*.log

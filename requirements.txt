@@ -1,0 +1,18 @@
+# Core data processing
+numpy
+pandas
+
+# Embeddings and retrieval
+sentence-transformers
+faiss-cpu
+rank-bm25
+
+# API
+fastapi
+uvicorn
+
+# LLM communication
+requests
+
+# User interface
+streamlit
