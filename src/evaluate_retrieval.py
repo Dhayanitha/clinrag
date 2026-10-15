@@ -16,7 +16,7 @@ EVALUATION_FILE = (
     BASE_DIR
     / "data"
     / "processed"
-    / "evaluation_queries.csv"
+    / "evaluation_queries_expanded.csv"
 )
 
 
@@ -150,7 +150,7 @@ def evaluate_method(
 
     return {
         "method": method_name,
-        f"Recall@{top_k}": recall_at_k,
+        f"HitRate@{top_k}": recall_at_k,
         "MRR": mrr
     }
 

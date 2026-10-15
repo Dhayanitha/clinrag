@@ -6,6 +6,7 @@ pandas
 sentence-transformers
 faiss-cpu
 rank-bm25
+google-genai
 
 # API
 fastapi

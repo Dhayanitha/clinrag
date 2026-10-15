@@ -1,16 +1,48 @@
 
+import os
 from typing import List, Dict
 
 import requests
+from google import genai
+from google.genai import types
 
 
-# 1. Ollama configuration
+# 1. Model configuration
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2.5:1.5b"
+OLLAMA_MODEL = "qwen2.5:1.5b"
+
+GEMINI_MODEL = "gemini-flash-latest"
 
 
-# 2. Build the prompt
+# 2. Read the Gemini API key
+
+def get_gemini_api_key() -> str:
+    # First, check environment variables.
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if api_key:
+        return api_key
+
+    # If running locally or on Streamlit, check Streamlit secrets.
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("GEMINI_API_KEY")
+    except Exception:
+        api_key = None
+
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is missing. Configure it in "
+            ".streamlit/secrets.toml or your deployment secrets."
+        )
+
+    return api_key
+
+
+# 3. Build the prompt
 
 def build_prompt(query: str, documents: List[Dict]) -> str:
     context_parts = []
@@ -46,31 +78,60 @@ Answer:
     return prompt
 
 
-# 3. Generate an answer using Ollama
+# 4. Generate using Gemini
+
+def generate_with_gemini(prompt: str) -> str:
+    client = genai.Client(api_key=get_gemini_api_key())
+
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0
+        ),
+    )
+
+    if not response.text:
+        raise RuntimeError("Gemini returned an empty response.")
+
+    return response.text.strip()
+
+
+# 5. Generate using Ollama
+
+def generate_with_ollama(prompt: str) -> str:
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0},
+        },
+        timeout=180,
+    )
+
+    response.raise_for_status()
+    return response.json()["response"].strip()
+
+
+# 6. Main generation function
 
 def generate_answer(query: str, documents: List[Dict]) -> str:
     prompt = build_prompt(query, documents)
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0
-            }
-        },
-        timeout=180
+    if LLM_PROVIDER == "gemini":
+        return generate_with_gemini(prompt)
+
+    if LLM_PROVIDER == "ollama":
+        return generate_with_ollama(prompt)
+
+    raise ValueError(
+        f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}"
     )
 
-    response.raise_for_status()
 
-    result = response.json()
-    return result["response"].strip()
-
-
-# 4. Test the generator
+# 7. Test the generator
 
 if __name__ == "__main__":
     sample_documents = [
@@ -86,7 +147,7 @@ if __name__ == "__main__":
 
     answer = generate_answer(
         "What are the symptoms of diabetes?",
-        sample_documents
+        sample_documents,
     )
 
     print("\nGenerated answer:")
