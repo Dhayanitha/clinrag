@@ -6,6 +6,9 @@ import requests
 from google import genai
 from google.genai import types
 
+import time
+from google.genai import errors
+
 
 # 1. Model configuration
 
@@ -80,21 +83,39 @@ Answer:
 
 # 4. Generate using Gemini
 
+
 def generate_with_gemini(prompt: str) -> str:
     client = genai.Client(api_key=get_gemini_api_key())
 
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0
-        ),
-    )
+    max_attempts = 3
 
-    if not response.text:
-        raise RuntimeError("Gemini returned an empty response.")
+    for attempt in range(max_attempts):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0
+                ),
+            )
 
-    return response.text.strip()
+            if not response.text:
+                raise RuntimeError(
+                    "Gemini returned an empty response."
+                )
+
+            return response.text.strip()
+
+        except errors.APIError as error:
+            # Retry temporary server-side failures only.
+            if error.code not in (500, 502, 503, 504):
+                raise
+
+            if attempt == max_attempts - 1:
+                raise
+
+            time.sleep(2 ** attempt)
+
 
 
 # 5. Generate using Ollama
