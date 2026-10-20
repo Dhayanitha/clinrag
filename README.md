@@ -1,7 +1,7 @@
 # ClinRAG
 ### Evidence-Grounded Clinical Knowledge Retrieval System
 
-ClinRAG is a Retrieval-Augmented Generation (RAG) application that answers clinical knowledge questions using evidence retrieved from the MedQuAD dataset. It combines dense retrieval, lexical search, rank fusion, reranking, and a locally running language model to generate evidence-grounded responses.
+ClinRAG is a Retrieval-Augmented Generation (RAG) application that answers clinical knowledge questions using evidence retrieved from the MedQuAD dataset. It combines dense retrieval, lexical search, rank fusion, and cross-encoder reranking, with Google Gemini for deployed answer generation and Ollama as a local alternative.
 
 **Disclaimer:** This is a research prototype for clinical information retrieval. It is not intended for diagnosis or personalized medical advice.
 
@@ -57,13 +57,12 @@ Streamlit UI / FastAPI
 | Embeddings | `all-MiniLM-L6-v2` |
 | Vector retrieval | FAISS |
 | Lexical retrieval | BM25 |
-| Hybrid ranking | Reciprocal Rank Fusion |
+| Hybrid ranking | Reciprocal Rank Fusion (RRF) |
 | Reranking | Cross-Encoder |
-| Language model | Qwen2.5 1.5B via Ollama |
-| API | FastAPI |
-| User interface | Streamlit |
 | Cloud language model | Google Gemini (`gemini-flash-latest`) |
 | Local language model | Qwen2.5 1.5B via Ollama |
+| API | FastAPI |
+| User interface | Streamlit |
 
 ## Project Structure
 
@@ -148,7 +147,6 @@ These scripts process the XML files, clean the extracted clinical knowledge, gen
 
 Ensure the processed CSV files, embeddings, and index are generated successfully before running the application. The dataset and generated artifacts are excluded from Git and must be prepared locally.
 
-
 ## Run the Application
 
 ### Configure the language model
@@ -167,7 +165,6 @@ To select Ollama in Windows PowerShell for the current terminal session, run:
 ```powershell
 $env:LLM_PROVIDER = "ollama"
 ```
-
 To use Gemini explicitly in the same session, run:
 
 ```powershell
