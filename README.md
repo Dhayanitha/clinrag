@@ -12,11 +12,12 @@ ClinRAG is a Retrieval-Augmented Generation (RAG) application that answers clini
 - Lexical retrieval using BM25
 - Hybrid ranking using Reciprocal Rank Fusion (RRF)
 - Cross-encoder reranking
-- Local answer generation using Ollama and Qwen2.5 1.5B
+- LLM-based answer generation using Google Gemini or local Ollama
+- Automatic retries for temporary Gemini server errors
 - FastAPI endpoint for question answering
 - Streamlit interface for interactive queries
 - Display of retrieved evidence, relevance scores, and source links
-- Initial retrieval evaluation using Recall@5 and Mean Reciprocal Rank (MRR)
+- Retrieval evaluation using HitRate@5 and Mean Reciprocal Rank (MRR)
 
 ## Architecture
 
@@ -36,7 +37,8 @@ Cross-Encoder Reranking
 Top Retrieved Evidence
       |
       v
-Ollama (Qwen2.5 1.5B)
+LLM Answer Generation
+(Google Gemini in deployment / Ollama locally)
       |
       v
 Generated Answer + Evidence + Sources
@@ -60,6 +62,8 @@ Streamlit UI / FastAPI
 | Language model | Qwen2.5 1.5B via Ollama |
 | API | FastAPI |
 | User interface | Streamlit |
+| Cloud language model | Google Gemini (`gemini-flash-latest`) |
+| Local language model | Qwen2.5 1.5B via Ollama |
 
 ## Project Structure
 
@@ -100,7 +104,7 @@ The `data/` directory contains the MedQuAD dataset and generated artifacts, whic
 ### 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/Dhayanitha/clinrag.git
 cd clinrag
 ```
 
@@ -127,22 +131,58 @@ ollama pull qwen2.5:1.5b
 
 Make sure the Ollama service is running before submitting questions.
 
-### 5. Prepare the dataset
+### 5. Prepare the dataset and build the retrieval index
 
-Download the MedQuAD dataset and place its XML files under the expected `data/raw/MedQuAD/` directory.
+Download the MedQuAD dataset and place its XML files under `data/raw/MedQuAD/`.
 
-Run the ingestion and cleaning scripts from the project root:
+Run the following commands from the project root in the activated `clinrag` environment:
 
 ```bash
 python src/data_ingestion.py
 python src/data_cleaning.py
+python src/embeddings.py
+python src/build_index.py
 ```
 
-Run the embedding and FAISS index creation scripts as applicable to your implementation. The processed CSV files, embeddings, and index must exist before retrieval can run.
+These scripts process the XML files, clean the extracted clinical knowledge, generate text embeddings, and build the FAISS retrieval index.
+
+Ensure the processed CSV files, embeddings, and index are generated successfully before running the application. The dataset and generated artifacts are excluded from Git and must be prepared locally.
+
 
 ## Run the Application
 
+### Configure the language model
+
+ClinRAG supports two language model providers:
+
+- **Google Gemini:** The default provider, used by the deployed Streamlit application. Configure `GEMINI_API_KEY` through Streamlit secrets or an environment variable. Never commit API keys to Git.
+- **Ollama:** An alternative for local development. Install Ollama and download the model:
+
+```bash
+ollama pull qwen2.5:1.5b
+```
+
+To select Ollama in Windows PowerShell for the current terminal session, run:
+
+```powershell
+$env:LLM_PROVIDER = "ollama"
+```
+
+To use Gemini explicitly in the same session, run:
+
+```powershell
+$env:LLM_PROVIDER = "gemini"
+```
+
+Start the application from that terminal after selecting the provider. Gemini requires a valid API key; Ollama requires its service and model to be available locally.
+
 ### Streamlit interface
+
+The Streamlit interface uses Google Gemini for answer generation when `GEMINI_API_KEY` is configured.
+
+For local development, configure the API key using Streamlit secrets or an environment variable. Never commit API keys to Git.
+
+Start the interface from the project root:
 
 ```bash
 streamlit run app.py
@@ -150,28 +190,34 @@ streamlit run app.py
 
 ### FastAPI service
 
+Start the API from the project root:
+
 ```bash
 uvicorn src.api:app --reload
 ```
 
-Open the FastAPI interactive documentation at:
+Open the interactive API documentation at:
 
 http://127.0.0.1:8000/docs
 
-The API includes a health endpoint and a question-answering endpoint.
+The API provides a health endpoint and a question-answering endpoint.
+
+**Note:** The API and Streamlit interface are separate ways to interact with the project. Ensure the required dataset artifacts and model dependencies are available before starting either service.
 
 ## Retrieval Evaluation
 
-The initial evaluation used five example queries with known relevant document IDs.
+The retrieval pipeline was evaluated using 35 queries with known relevant document IDs. Performance was measured using HitRate@5 and Mean Reciprocal Rank (MRR).
 
-| Retrieval method | Recall@5 | MRR |
+| Retrieval method | HitRate@5 | MRR |
 |---|---:|---:|
-| FAISS dense retrieval | 1.00 | 0.90 |
-| BM25 | 0.60 | 0.40 |
-| Hybrid RRF | 1.00 | 0.7333 |
-| Hybrid + Cross-Encoder | 1.00 | 0.80 |
+| FAISS dense retrieval | 0.9143 | 0.7819 |
+| BM25 | 0.8286 | 0.7248 |
+| Hybrid RRF | 0.9429 | 0.7486 |
+| Hybrid + Cross-Encoder | 0.9714 | 0.8176 |
 
-These results are preliminary and based on a very small evaluation set. They should not be interpreted as evidence of general retrieval performance or clinical accuracy.
+The Hybrid + Cross-Encoder pipeline achieved a HitRate@5 of 97.14% and an MRR of 0.8176 on this evaluation set.
+
+**Evaluation caveat:** These results are preliminary. The 35-query set is a development evaluation, not an independent held-out test set, and relevance labels are based on matching source document IDs. Performance may therefore be optimistic. Retrieval metrics measure document retrieval quality, not clinical accuracy or the correctness of generated answers.
 
 ## Limitations
 
